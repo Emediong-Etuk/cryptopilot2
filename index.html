@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoBot - Automated Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#10b981', // Emerald 500
+                        danger: '#ef4444',  // Red 500
+                        bg: '#f3f4f6',      // Gray 100
+                        surface: '#ffffff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .card {
+                @apply bg-surface rounded-xl border border-gray-200 shadow-sm p-6;
+            }
+            .btn {
+                @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+            }
+            .btn-primary {
+                @apply bg-emerald-600 text-white hover:bg-emerald-700;
+            }
+            .btn-danger {
+                @apply bg-red-600 text-white hover:bg-red-700;
+            }
+            .input-field {
+                @apply w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-gray-900">CryptoBot</h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 px-4 py-1.5 bg-gray-100 rounded-full border border-gray-200">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</span>
+                <span id="bot-status-indicator" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+                <span id="bot-status-text" class="text-sm font-medium text-gray-700">Idle</span>
+            </div>
+            <div class="flex items-center gap-4 text-sm font-medium">
+                <div class="text-right">
+                    <p class="text-gray-500 text-xs">Total Balance</p>
+                    <p id="total-balance" class="text-lg font-bold text-gray-900">$10,000.00</p>
+                </div>
+                <div class="h-8 w-px bg-gray-200"></div>
+                <div class="text-right">
+                    <p class="text-gray-500 text-xs">Daily P&L</p>
+                    <p id="daily-pnl" class="text-lg font-bold text-emerald-600">+$0.00 (0.00%)</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar: Market & Assets -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
+            <div class="p-4 border-b border-gray-100">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Watchlist</h2>
+                <div class="space-y-2" id="watchlist">
+                    <!-- Asset Item Template -->
+                    <button class="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200 group active-asset" data-symbol="BTC">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-gray-700">BTC</span>
+                            <span class="text-sm font-medium text-gray-900">$45,230.00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Bitcoin</span>
+                            <span class="text-xs font-medium text-emerald-600">+1.2%</span>
+                        </div>
+                    </button>
+                    <!-- More items injected by JS -->
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your Assets</h2>
+                <div class="space-y-3" id="portfolio-list">
+                    <!-- Portfolio items injected by JS -->
+                    <div class="flex justify-between items-center p-2">
+                        <span class="text-sm text-gray-500">USDT</span>
+                        <span class="text-sm font-medium text-gray-900">$10,000.00</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Chart & Strategy -->
+        <section class="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-y-auto">
+            <!-- Chart Area -->
+            <div class="h-96 bg-white p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 id="active-symbol" class="text-2xl font-bold text-gray-900">BTC/USDT</h2>
+                        <p id="active-price" class="text-3xl font-bold text-emerald-600 mt-1">$45,230.00</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="px-3 py-1 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-md border border-emerald-100">1H</button>
+                        <button class="px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md">1D</button>
+                        <button class="px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md">1W</button>
+                    </div>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Strategy & Controls -->
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Bot Controls -->
+                <div class="card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-gray-900">Automated Strategy</h3>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="bot-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2 text-xs font-medium text-gray-500 uppercase">Strategy Type</label>
+                                <select id="strategy-select" class="input-field">
+                                    <option value="sma">SMA Crossover</option>
+                                    <option value="scalping">Scalping (High Freq)</option>
+                                    <option value="mean-reversion">Mean Reversion</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-xs font-medium text-gray-500 uppercase">Risk Level</label>
+                                <select class="input-field">
+                                    <option>Low (Conservative)</option>
+                                    <option selected>Medium (Balanced)</option>
+                                    <option>High (Aggressive)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2 text-xs font-medium text-gray-500 uppercase">Take Profit (%)</label>
+                                <div class="relative">
+                                    <input type="number" value="2.5" step="0.1" class="input-field pr-8">
+                                    <span class="absolute right-3 top-2.5 text-gray-400 text-xs">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block mb-2 text-xs font-medium text-gray-500 uppercase">Stop Loss (%)</label>
+                                <div class="relative">
+                                    <input type="number" value="1.0" step="0.1" class="input-field pr-8">
+                                    <span class="absolute right-3 top-2.5 text-gray-400 text-xs">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-gray-100 mt-2">
+                             <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-500">Active Positions</span>
+                                <span class="font-medium text-gray-900" id="active-positions-count">0</span>
+                             </div>
+                             <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Win Rate (24h)</span>
+                                <span class="font-medium text-emerald-600" id="win-rate">0%</span>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Trade / Quick Action -->
+                <div class="card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-gray-900">Manual Override</h3>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="flex p-1 bg-gray-100 rounded-lg">
+                            <button id="btn-buy-mode" class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-emerald-700 shadow-sm transition-all">Buy</button>
+                            <button id="btn-sell-mode" class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Sell</button>
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 text-xs font-medium text-gray-500 uppercase">Amount (USDT)</label>
+                            <input type="number" id="manual-amount" class="input-field" placeholder="0.00">
+                            <div class="flex justify-between mt-1">
+                                <span class="text-xs text-gray-400">Available: <span id="available-usdt">10000.00</span> USDT</span>
+                                <button class="text-xs text-emerald-600 font-medium hover:underline">Max</button>
+                            </div>
+                        </div>
+
+                        <button id="execute-trade-btn" class="w-full btn btn-primary mt-2">
+                            Buy BTC
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Logs & History -->
+        <aside class="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="font-bold text-gray-900">Trading Activity</h2>
+                <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">Live</span>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-0" id="activity-log">
+                <!-- Log items will be injected here -->
+                <div class="p-4 text-center text-sm text-gray-400 italic">
+                    Waiting for market data...
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
